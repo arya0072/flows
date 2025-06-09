@@ -1,0 +1,34 @@
+id: dbt_build
+namespace: dev
+inputs:
+  - type: STRING
+    id: dbt_model
+
+tasks:
+  - id: dbt_build
+    type: io.kestra.plugin.dbt.cli.DbtCLI
+    namespaceFiles:
+      enabled: true
+    containerImage: python:slim
+    beforeCommands: 
+      - pip install dbt-core dbt-bigquery
+    projectDir: dbt
+    commands:
+      - "dbt build --select {{ inputs.dbt_model }} --project-dir dbt"
+    taskRunner:
+      type: io.kestra.plugin.scripts.runner.docker.Docker
+    profiles: |
+      mp_dbt:
+        outputs:
+          dev:
+            dataset: mp_dbt
+            job_execution_timeout_seconds: 300
+            job_retries: 1
+            keyfile_json: {{kv('GCP_SERVICE_ACC')}}
+            location: US
+            method: service-account-json
+            priority: interactive
+            project: mitraprodin-data-warehouse
+            threads: 4
+            type: bigquery
+        target: dev
