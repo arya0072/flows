@@ -45,4 +45,4 @@ tasks:
 triggers:
   - id: daily_3am
     type: io.kestra.plugin.core.trigger.Schedule
-    cron: "@daily"
+    cron: "0 21 * * *"
