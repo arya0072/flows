@@ -24,7 +24,7 @@ tasks:
             dataset: mp_dbt
             job_execution_timeout_seconds: 300
             job_retries: 1
-            keyfile_json: {{kv('GCP_SERVICE_ACC')}}
+            keyfile_json: {{ secret('GCP_SERVICE_ACCOUNT') }}
             location: US
             method: service-account-json
             priority: interactive
