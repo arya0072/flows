@@ -18,7 +18,7 @@ tasks:
     type: io.kestra.plugin.git.PushNamespaceFiles
     namespace: dev
     username: arya0072
-    password: "{{ secret('GITHUB_ACC') }}"
+    password: "{{ kv('GITHUB_ACC') }}"
     url: https://github.com/arya0072/mp_dbt
     branch: dev
     gitDirectory: dbt

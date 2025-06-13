@@ -1,4 +1,4 @@
-id: dbt_pipeline_data_infor
+id: DataInfor
 namespace: dev
 
 tasks:
