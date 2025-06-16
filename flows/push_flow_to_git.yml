@@ -4,10 +4,10 @@ tasks:
   - id: commit_and_push
     type: io.kestra.plugin.git.PushFlows
     username: arya0072
-    password: "{{ kv('GITHUB_ACC') }}"
+    password: "{{ secret('GITHUB_ACC') }}"
     url: https://github.com/arya0072/flows
     branch: main
     sourceNamespace: dev
     gitDirectory: flows
-    commitMessage: "changed flow some names"
+    commitMessage: "add new flow"
     dryRun: false
