@@ -1,5 +1,6 @@
 id: Manual_Exec
 namespace: dev
+
 inputs:
   - type: STRING
     id: dbt_model

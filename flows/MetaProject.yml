@@ -11,7 +11,7 @@ tasks:
       - pip install dbt-core dbt-bigquery
     projectDir: dbt
     commands:
-      - "dbt build --project-dir dbt --models +mart.MetaProject"
+      - "dbt build --project-dir dbt --models mart.MetaProject"
     taskRunner:
       type: io.kestra.plugin.scripts.runner.docker.Docker
     profiles: |
@@ -43,6 +43,6 @@ tasks:
 
 
 triggers:
-  - id: daily_3am
+  - id: daily_5am
     type: io.kestra.plugin.core.trigger.Schedule
     cron: "0 21 * * *"

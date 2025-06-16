@@ -9,5 +9,5 @@ tasks:
     branch: main
     sourceNamespace: dev
     gitDirectory: flows
-    commitMessage: "push all development flows to Git"
+    commitMessage: "changed flow some names"
     dryRun: false
