@@ -1,0 +1,46 @@
+id: MP102_ItemAttribute
+namespace: dev
+labels:
+  Type: Source
+  Source: INFOR
+
+triggers:
+  - id: daily_3am
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "5 3 * * *"
+
+variables:
+  dataset: mp_dbt
+
+tasks:
+
+  - id: run_el_item_attribute
+    type: io.kestra.plugin.core.flow.Subflow
+    flowId: generic_extract_load_infor_append
+    namespace: dev
+    
+    inputs:
+      api_path_and_query: https://csi10a.erpsl.se2.inforcloudsuite.com/IDORequestService/ido/load/ue_ID_MP102_ItemAttributeRpt?properties=ue_Item,ue_ItemDesc,ue_FilterPaperLength,ue_ConesPerPackOrBulk,ue_PackPerUnit,ue_UnitOrBulkPerSC,ue_ConesPerSC,ue_ConeType,ue_FilterShape,ue_FilterPaperColor,ue_Logo,ue_PaperLength,ue_PaperGenus,ue_PaperColor,ue_Watermark,ue_PrintTipCat, ue_CustItem&clm=SP_MP102_ItemAttributeReport&clmparam=
+
+      bq_destination_table: "{{ vars.dataset }}.item_atrribute"
+      bq_schema_fields: |
+        [
+          {"name": "ue_Item", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_ItemDesc", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_FilterPaperLength", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_ConesPerPackOrBulk", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "ue_PackPerUnit", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "ue_UnitOrBulkPerSC", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "ue_ConesPerSC", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "ue_ConeType", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_FilterShape", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_FilterPaperColor", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_Logo", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_PaperLength", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_PaperGenus", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_PaperColor", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_Watermark", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_PrintTipCat", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_CustItem", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "_ItemId", "type": "STRING", "mode": "NULLABLE"}
+        ]

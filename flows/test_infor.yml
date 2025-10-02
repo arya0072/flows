@@ -1,0 +1,25 @@
+id: test_infor
+namespace: dev
+
+variables:
+  infor_token: "{{ kv('INFOR_API_TOKEN') }}"
+  month_year: "{{ inputs.start_date | date('yyyy-MM') }}"
+  project_id: "mitraprodin-data-warehouse"
+  bq_dest_table: "mp_infor.ledger_2"
+  properties: "DerDesc,DerContent,RecordDate,ue_SpcnRecordDate,RefRowPointer,RowPointer"
+  # This is the raw, readable filter string
+  filter_value: "NoteHeaderToken=4 AND ue_SpcnRecordDate >= '2025-08-31' AND ue_SpcnRecordDate <= '2025-09-02'"
+  recordCap: "20000"
+  
+tasks:
+
+  - id: extract_infor_data
+    type: io.kestra.plugin.core.http.Request
+    headers:
+      Authorization: "{{ kv('INFOR_API_TOKEN')}}\r\n   "
+      X-Infor-MongooseConfig: "\"MITRAPRODIN_PRD_MITRAPRO\""
+    uri: https://csi10a.erpsl.se2.inforcloudsuite.com/IDORequestService/ido/load/ue_ID_MP111_WIPDetail?properties=Acct,Job,ItemJob,ItemJobDesc,Material,MaterialDesc,TransType,ProductCode,UM,Qty,Amount&clm=SP_MP111_WIPDetailByAccount&clmparam=,,,,,,20250911
+
+  - id: print_data
+    type: io.kestra.plugin.core.log.Log
+    message: '{{ outputs.extract_infor_data.body }}'

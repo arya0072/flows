@@ -1,0 +1,72 @@
+id: Budget_Sales
+namespace: dev
+labels:
+  Type: Source
+  Source: INFOR
+
+triggers:
+  - id: daily_3am
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "5 3 * * *"
+
+variables:
+  n: 20000
+  dataset: mp_dbt
+
+tasks:
+  - id: calculate_dates
+    type: io.kestra.plugin.core.debug.Return
+    format: |
+      {
+        "start_date": "{{ trigger.date ?? execution.startDate | dateAdd(-2, 'DAYS') | date('yyyy-MM-dd') }}",
+        "end_date": "{{ trigger.date ?? execution.startDate | date('yyyy-MM-dd') }}"
+      }
+
+  - id: run_el_budget_sales
+    type: io.kestra.plugin.core.flow.Subflow
+    flowId: generic_extract_load_infor_append
+    namespace: dev
+    
+    inputs:
+      append_strategy: DAILY
+      api_path_and_query: https://csi10a.erpsl.se2.inforcloudsuite.com/IDORequestService/ido/load/ue_TB_MP153_SalesBudgets?properties=ProductType,QtyPcs,TotalDisc,TotalPrice,ChartDescription,CreateDate,CurrCode,CustName,CustNum,DiscAcct,DiscAcctUnit1,DiscAcctUnit2,DiscChaDescription,Discount,ExchRate,Item,ItemDescription,NPD,PCDescription,ProductCode,Qty,RecordDate,SalesAcct,SalesAcctUnit1,SalesAcctUnit2,UM,UnitPrice,Period,Year,Status&filter=RecordDate >= '{{ json(outputs.calculate_dates.value).start_date }}' AND RecordDate <= '{{ json(outputs.calculate_dates.value).end_date }}'&recordCap={{ vars.n }}&loadType=NEXT
+      
+      start_date: "{{ json(outputs.calculate_dates.value).start_date }}"
+      end_date: "{{ json(outputs.calculate_dates.value).end_date }}"
+      bq_destination_table: "{{ vars.dataset }}.budget_sales"
+      date_field: "RecordDate"
+      bq_schema_fields: |
+        [
+          {"name": "ProductType", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "QtyPcs", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "TotalDisc", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "TotalPrice", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "ChartDescription", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "CreateDate", "type": "TIMESTAMP", "mode": "NULLABLE"},
+          {"name": "CurrCode", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "CustName", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "CustNum", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "DiscAcct", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "DiscAcctUnit1", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "DiscAcctUnit2", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "DiscChaDescription", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "Discount", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "ExchRate", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "Item", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ItemDescription", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "NPD", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "PCDescription", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ProductCode", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "Qty", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "RecordDate", "type": "TIMESTAMP", "mode": "NULLABLE"},
+          {"name": "SalesAcct", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "SalesAcctUnit1", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "SalesAcctUnit2", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "UM", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "UnitPrice", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "Period", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "Year", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "Status", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "_ItemId", "type": "STRING", "mode": "NULLABLE"}
+        ]
+disabled: false

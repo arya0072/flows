@@ -1,0 +1,123 @@
+id: MP45_InventorymoveQty_MP
+namespace: dev
+labels:
+  Type: Source
+  Group: Inventory Movement
+
+triggers:
+  - id: daily_3am
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 3 * * *"
+
+inputs:
+  - id: start_date_manual
+    type: DATE
+    required: true
+    displayName: Start Date
+  - id: end_date_manual
+    type: DATE
+    required: true
+    displayName: End Date
+  - id: whse_start
+    type: SELECT
+    required: false
+    displayName: Warehouse Start
+    values:
+      - FGJM
+      - PRJM
+  - id: whse_end
+    type: SELECT
+    required: false
+    displayName: Warehouse End
+    values:
+      - MPKB
+      - WHJM
+
+variables:
+  n: 20000
+  dataset: mp_infor
+
+tasks:
+  - id: compute_site
+    type: io.kestra.plugin.core.debug.Return
+    format: |
+      {% if inputs.whse_start == "FGJM" and inputs.whse_end == "MPKB" %}
+      MITRAPRO1
+      {% elseif inputs.whse_start == "PRJM" and inputs.whse_end == "WHJM" %}
+      MITRAPRO2
+      {% elseif inputs.whse_start is empty and inputs.whse_end is empty %}
+      MITRAPRO3
+      {% else %}
+      UNKNOWN
+      {% endif %}
+  - id: debug_site
+    type: io.kestra.plugin.core.debug.Return
+    format: "site='{{ outputs.compute_site.value }}'"
+  - id: run_el_movement_qty_mp
+    type: io.kestra.plugin.core.flow.Subflow
+    flowId: generic_extract_load_infor_append
+    namespace: dev
+    
+    inputs:
+      append_strategy: MONTHLY_YEAR_SITE
+      api_path_and_query: https://csi10a.erpsl.se2.inforcloudsuite.com/IDORequestService/ido/load/ue_ID_MP45_InventoryMoveQty?properties=ue_Item,ue_ItemDesc,ue_ProdDesc,ue_ProductCode,ue_Customer,ue_CustName,ue_ConvFactor,ue_UM,ue_QtyBeginning,ue_QtyBeginning_Pcs,ue_CreateJob,ue_CreateJob_Pcs,ue_CycleCount,ue_CycleCount_Pcs,ue_FinishJob,ue_FinishJob_Pcs,ue_IssueWIPJob,ue_IssueWIPJob_Pcs,ue_MiscIssue,ue_MiscIssue_Pcs,ue_MiscRecpt,ue_MiscRecpt_Pcs,ue_NextLbrJob,ue_NextLbrJob_Pcs,ue_PhysInv,ue_PhysInv_Pcs,ue_QtyMove,ue_QtyMove_Pcs,ue_ReceiptPO,ue_ReceiptPO_Pcs,ue_ReturnPO,ue_ReturnPO_Pcs,ue_ReturnIssueJob,ue_ReturnIssueJob_Pcs,ue_RMA,ue_RMA_Pcs,ue_ShipCO,ue_ShipCO_Pcs,ue_TransferOrder,ue_TransferOrder_Pcs,ue_TransferOrderLoss,ue_TransferOrderLoss_Pcs,ue_QtyEnding,ue_QtyEnding_Pcs,ue_Adjustment,ue_Adjustment_Pcs,ue_Whse&clm=SP_MP45_StockMoveQty&clmparam={{ inputs.start_date_manual }},{{ inputs.end_date_manual }},,,,,1,{{ inputs.whse_start }},{{ inputs.whse_end }}
+
+      start_date: "{{ inputs.start_date_manual }}"
+      end_date: "{{ inputs.end_date_manual }}"
+      bq_destination_table: "{{ vars.dataset }}.movement_qty_mp"
+      date_field: "Month"
+      date_year_field: "Year"
+      site: "{{ outputs.compute_site.value | trim }}"
+      site_field: Site
+      bq_schema_fields: |
+        {
+          'ue_ConvFactor' : 'float',
+          'ue_QtyBeginning' : 'float',
+          'ue_QtyBeginning_Pcs' : 'float',
+          'ue_CreateJob' : 'float',
+          'ue_CreateJob_Pcs' : 'float',
+          'ue_CycleCount' : 'float',
+          'ue_CycleCount_Pcs' : 'float',
+          'ue_FinishJob' : 'float',
+          'ue_FinishJob_Pcs' : 'float',
+          'ue_IssueWIPJob' : 'float',
+          'ue_IssueWIPJob_Pcs' : 'float',
+          'ue_MiscIssue' : 'float',
+          'ue_MiscIssue_Pcs' : 'float',
+          'ue_MiscRecpt' : 'float',
+          'ue_MiscRecpt_Pcs' : 'float',
+          'ue_NextLbrJob' : 'float',
+          'ue_NextLbrJob_Pcs' : 'float',
+          'ue_PhysInv' : 'float',
+          'ue_PhysInv_Pcs' : 'float',
+          'ue_QtyMove' : 'float',
+          'ue_QtyMove_Pcs' : 'float',
+          'ue_ReceiptPO' : 'float',
+          'ue_ReceiptPO_Pcs' : 'float',
+          'ue_ReturnPO' : 'float',
+          'ue_ReturnPO_Pcs' : 'float',
+          'ue_ReturnIssueJob' : 'float',
+          'ue_ReturnIssueJob_Pcs' : 'float',
+          'ue_RMA' : 'float',
+          'ue_RMA_Pcs' : 'float',
+          'ue_ShipCO' : 'float',
+          'ue_ShipCO_Pcs' : 'float',
+          'ue_TransferOrder' : 'float',
+          'ue_TransferOrder_Pcs' : 'float',
+          'ue_TransferOrderLoss' : 'float',
+          'ue_TransferOrderLoss_Pcs' : 'float',
+          'ue_QtyEnding' : 'float',
+          'ue_QtyEnding_Pcs' : 'float',
+          'ue_Adjustment' : 'float',
+          'ue_Adjustment_Pcs' : 'float'
+        }
+
+  - id: result_logs
+    type: io.kestra.plugin.core.debug.Return
+    format: |
+      Total rows: {{ outputs.run_el_movement_qty_mp.outputs.total_rows }}
+      Start Date: {{ outputs.run_el_movement_qty_mp.outputs.start_date }}
+      End Date: {{ outputs.run_el_movement_qty_mp.outputs.end_date }}
+      Year: {{ outputs.run_el_movement_qty_mp.outputs.year }}
+      Month: {{ outputs.run_el_movement_qty_mp.outputs.month }}
+

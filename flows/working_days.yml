@@ -1,0 +1,41 @@
+id: working_days
+namespace: dev
+
+variables:
+  project_id: "mitraprodin-data-warehouse"
+
+tasks:
+  - id: get_data
+    type: io.kestra.plugin.jdbc.mysql.Query
+    url: jdbc:mysql://mitraprodin.cshpjnhssmv4.ap-southeast-1.rds.amazonaws.com/hrpayroll
+    username: ady
+    password: AdyProdin-217
+    sql: |
+      select
+        mwd.id,
+        mwd.name as periode_month,
+        wdsg.total_days
+      from working_days_shift_group wdsg
+      left join m_working_days mwd on wdsg.id_m_working_days = mwd.id
+      left join m_shift_group msg on wdsg.id_m_shift_group = msg.id
+      where wdsg.status = 1 and msg.lensa_code = 2
+    fetchType: STORE
+  
+  - id: convert_to_csv
+    type: io.kestra.plugin.serdes.csv.IonToCsv
+    from: "{{ outputs.get_data.uri }}"
+  
+  - id: load_to_bigquery
+    type: io.kestra.plugin.gcp.bigquery.Load
+    from: "{{ outputs.convert_to_csv.uri }}"
+    projectId: "{{ vars.project_id }}"
+    serviceAccount: "{{ kv('GCP_SERVICE_ACC_ETL') }}"
+    destinationTable: "mp_infor.working_days_2"
+    format: CSV
+    autodetect: true
+    csvOptions:
+      allowJaggedRows: true
+      skipLeadingRows: 1
+    
+    
+

@@ -1,0 +1,116 @@
+id: SentimentPrediction
+namespace: dev
+
+variables:
+  date: "{{ trigger.date ?? execution.startDate | date('yyyy-MM-dd') }}"
+  api_url: "https://nitvpzx2i7.execute-api.ap-southeast-1.amazonaws.com"
+
+tasks:
+  - id: batch_prediction
+    type: "io.kestra.plugin.scripts.python.Script"
+    beforeCommands: 
+      - pip install sqlalchemy pymysql aiohttp tqdm 
+    script: |
+        import os
+        import asyncio
+        import aiohttp
+        from tqdm.asyncio import tqdm_asyncio
+        from sqlalchemy import create_engine, text
+        from kestra import Kestra
+
+        # --- Configure Logging ---
+        # This sets up a basic logger that will output to your terminal.
+        logging = Kestra.logger()
+
+        API_BASE_URL = "{{ vars.api_url }}"
+        API_SECRET_KEY = '{{ kv('FASTAPI_KEY') }}'
+        DATABASE_URL = '{{ kv('DB_PROD_URL') }}'
+
+        # --- Concurrency Settings ---
+        CONCURRENT_REQUESTS = 15
+
+        # --- SQL Query ---
+        SQL_QUERY = text("""
+            SELECT 
+                sr.id
+            FROM survey_respond sr
+            LEFT JOIN survey_question sq ON sr.id_survey_question = sq.id
+            WHERE 
+                sq.id_survey_answer = 1 
+                AND sr.value IS NOT NULL
+                AND sr.sentiment IS NULL
+                AND DATE(sr.created_at) = '{{ render(vars.date) }}';
+        """)
+
+        # --- Main Logic ---
+        async def call_predict_api(session, respond_id, semaphore):
+            """
+            Makes a single, asynchronous POST request to the predict endpoint.
+            """
+            predict_url = f"{API_BASE_URL}/prod/predict/{respond_id}"
+            headers = {"X-API-Key": API_SECRET_KEY}
+            
+            async with semaphore:
+                try:
+                    async with session.post(predict_url, headers=headers, timeout=60) as response:
+                        if response.status == 200:
+                            return {"id": respond_id, "status": "success"}
+                        else:
+                            error_text = await response.text()
+                            # Use logging.error for failures
+                            logging.error(f"Error for ID {respond_id}: Status {response.status}, Body: {error_text}")
+                            return {"id": respond_id, "status": "failed", "reason": f"Status {response.status}"}
+                except Exception as e:
+                    # Use logging.error for exceptions
+                    logging.error(f"Request failed for ID {respond_id}: {e}")
+                    return {"id": respond_id, "status": "failed", "reason": str(e)}
+
+        async def main():
+            """
+            Main function to fetch data and run the batch prediction process.
+            """
+            logging.info("Connecting to the database...") 
+            logging.info("Doing Prediction on {{ render(vars.date) }}") 
+            engine = create_engine(DATABASE_URL)
+            
+            with engine.connect() as connection:
+                logging.info("Fetching survey response IDs to process...") 
+                result = connection.execute(SQL_QUERY)
+                ids_to_process = [row[0] for row in result]
+
+            if not ids_to_process:
+                logging.info("No new survey responses to process. Exiting.")
+                return
+
+            logging.info(f"Found {len(ids_to_process)} responses to analyze.") 
+            
+
+            semaphore = asyncio.Semaphore(CONCURRENT_REQUESTS)
+            
+            async with aiohttp.ClientSession() as session:
+                tasks = [call_predict_api(session, respond_id, semaphore) for respond_id in ids_to_process]
+                
+                results = await asyncio.gather(*tasks)
+                
+                # --- Final Report ---
+                success_count = sum(1 for r in results if r['status'] == 'success')
+                failed_count = len(results) - success_count
+                
+                logging.info("--- Batch Processing Complete ---") 
+                logging.info(f"Successfully processed: {success_count}") 
+                logging.info(f"Failed to process: {failed_count}") 
+                logging.info("---------------------------------") 
+
+
+        if __name__ == "__main__":
+            asyncio.run(main())     
+
+triggers:
+  - id: daily_11am
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 11 * * *"
+
+  - id: daily_11pm
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 23 * * *"
+

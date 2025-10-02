@@ -4,7 +4,7 @@ tasks:
   - id: commit_and_push
     type: io.kestra.plugin.git.PushFlows
     username: arya0072
-    password: "{{ secret('GITHUB_ACC') }}"
+    password: "{{ kv('GITHUB_ACC') }}"
     url: https://github.com/arya0072/flows
     branch: main
     sourceNamespace: dev

@@ -1,0 +1,154 @@
+id: MP45_StockMoveAmt_MP_New
+namespace: dev
+labels:
+  Type: Source
+  Group: Inventory Movement
+
+triggers:
+  - id: daily_3am
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 3 * * *"
+
+inputs:
+  - id: start_date_manual
+    type: DATE
+    required: true
+    displayName: Start Date
+  - id: end_date_manual
+    type: DATE
+    required: true
+    displayName: End Date
+  - id: site
+    type: SELECT
+    required: false
+    displayName: Site
+    values:
+      - KBPR
+      - MP
+      - KTWL
+      - FGJM
+    defaults: MP
+  - id: pc_start
+    type: SELECT
+    required: false
+    displayName: Product Code Start
+    values:
+      - FGD-ACC
+      - SUN-PAL
+  - id: pc_end
+    type: SELECT
+    required: false
+    displayName: Product Code End
+    values:
+      - SCN-PIX
+      - WAS-UNW
+
+variables:
+  dataset: mp_infor
+  year: "{{ inputs.start_date_manual | date('yyyy') }}"
+  month: "{{ inputs.start_date_manual | date('MMM') }}"
+
+tasks:
+
+  - id: run_el_movement_value_mp_new
+    type: io.kestra.plugin.core.flow.Subflow
+    flowId: generic_extract_load_infor_append
+    namespace: dev
+    
+    inputs:
+      append_strategy: MONTHLY_YEAR
+      api_path_and_query: https://csi10a.erpsl.se2.inforcloudsuite.com/IDORequestService/ido/load/ue_ID_MP45_StockMoveAmt?clm=SP_MP45_StockMoveAmt&properties=ue_Acct,ue_AcctDesc,ue_CustName,ue_Customer,ue_Item,ue_ItemDesc,ue_Lbr_Adjustment,ue_Lbr_Beginning,ue_Lbr_CreateJob,ue_Lbr_CycleCount,ue_Lbr_FinishJob,ue_Lbr_IssueWIPJob,ue_Lbr_MiscIssue,ue_Lbr_MiscRecpt,ue_Lbr_NextLbrJob,ue_Lbr_PhysInv,ue_Lbr_QtyEnding,ue_Lbr_QtyMove,ue_Lbr_ReturnIssueJob,ue_Lbr_RMA,ue_Lbr_ShipCO,ue_Lbr_TransferOrder,ue_Lbr_TransferOrderLoss,ue_Matl_Adjustment,ue_Matl_Beginning,ue_Matl_CreateJob,ue_matl_CycleCount,ue_Matl_FinishJob,ue_Matl_IssueWIPJob,ue_Matl_MiscIssue,ue_matl_MiscRecpt,ue_Matl_PhysInv,ue_matl_QtyEnding,ue_Matl_QtyMove,ue_Matl_ReceiptPO,ue_Matl_ReturnIssueJob,ue_Matl_ReturnPO,ue_Matl_RMA,ue_Matl_ShipCO,ue_Matl_TransferOrder,ue_Matl_TransferOrderLoss,ue_OustandingCO_LbrCost,ue_OustandingCO_MatlCost,ue_OustandingCO_OvhCost,ue_Ovh_Adjustment,ue_Ovh_Beginning,ue_Ovh_CreateJob,ue_Ovh_CycleCount,ue_Ovh_FinishJob,ue_Ovh_IssueWIPJob,ue_Ovh_MiscIssue,ue_Ovh_MiscRecpt,ue_Ovh_NextLbrJob,ue_Ovh_PhysInv,ue_Ovh_QtyEnding,ue_Ovh_QtyMove,ue_Ovh_ReturnIssueJob,ue_Ovh_RMA,ue_Ovh_ShipCO,ue_Ovh_TransferOrder,ue_Ovh_TransferOrderLoss,ue_Vovhd_Beginning,ue_Vovhd_FinishJob,ue_Vovhd_NextLbrJob,ue_Vovhd_IssueWIPJob,ue_Vovhd_ReturnIssueJob,ue_Vovhd_CreateJob,ue_Vovhd_ShipCO,ue_Vovhd_RMA,ue_Vovhd_QtyMove,ue_Vovhd_TransferOrder,ue_Vovhd_TransferOrderLoss,ue_Vovhd_MiscIssue,ue_Vovhd_MiscRecpt,ue_Vovhd_CycleCount,ue_Vovhd_PhysInv,ue_Vovhd_QtyEnding,ue_Vovhd_Adjustment,ue_OustandingCO_VovhdCost,ue_ProdDesc,ue_ProductCode,ue_UM,ue_Whse&clmparam={{ inputs.start_date_manual }},{{ inputs.end_date_manual }},,,{{ inputs.pc_start}},{{ inputs.pc_end}},1
+      
+      start_date: "{{ inputs.start_date_manual }}"
+      end_date: "{{ inputs.end_date_manual }}"
+      bq_destination_table: "{{ vars.dataset }}.movement_value_mp_new"
+      date_field: "Month"
+      date_year_field: "Year"
+      site: "{{ inputs.site }}"
+      site_field: Site
+      bq_schema_fields: |
+        {
+          'ue_Lbr_Adjustment' : 'float',
+          'ue_Lbr_Beginning' : 'float',
+          'ue_Lbr_CreateJob' : 'float',
+          'ue_Lbr_CycleCount' : 'float',
+          'ue_Lbr_FinishJob' : 'float',
+          'ue_Lbr_IssueWIPJob' : 'float',
+          'ue_Lbr_MiscIssue' : 'float',
+          'ue_Lbr_MiscRecpt' : 'float',
+          'ue_Lbr_NextLbrJob' : 'float',
+          'ue_Lbr_PhysInv' : 'float',
+          'ue_Lbr_QtyEnding' : 'float',
+          'ue_Lbr_QtyMove' : 'float',
+          'ue_Lbr_ReturnIssueJob' : 'float',
+          'ue_Lbr_RMA' : 'float',
+          'ue_Lbr_ShipCO' : 'float',
+          'ue_Lbr_TransferOrder' : 'float',
+          'ue_Lbr_TransferOrderLoss' : 'float',
+          'ue_Matl_Adjustment' : 'float',
+          'ue_Matl_Beginning' : 'float',
+          'ue_Matl_CreateJob' : 'float',
+          'ue_matl_CycleCount' : 'float',
+          'ue_Matl_FinishJob' : 'float',
+          'ue_Matl_IssueWIPJob' : 'float',
+          'ue_Matl_MiscIssue' : 'float',
+          'ue_matl_MiscRecpt' : 'float',
+          'ue_Matl_PhysInv' : 'float',
+          'ue_matl_QtyEnding' : 'float',
+          'ue_Matl_QtyMove' : 'float',
+          'ue_Matl_ReceiptPO' : 'float',
+          'ue_Matl_ReturnIssueJob' : 'float',
+          'ue_Matl_ReturnPO' : 'float',
+          'ue_Matl_RMA' : 'float',
+          'ue_Matl_ShipCO' : 'float',
+          'ue_Matl_TransferOrder' : 'float',
+          'ue_Matl_TransferOrderLoss' : 'float',
+          'ue_OustandingCO_LbrCost' : 'float',
+          'ue_OustandingCO_MatlCost' : 'float',
+          'ue_OustandingCO_OvhCost' : 'float',
+          'ue_Ovh_Adjustment' : 'float',
+          'ue_Ovh_Beginning' : 'float',
+          'ue_Ovh_CreateJob' : 'float',
+          'ue_Ovh_CycleCount' : 'float',
+          'ue_Ovh_FinishJob' : 'float',
+          'ue_Ovh_IssueWIPJob' : 'float',
+          'ue_Ovh_MiscIssue' : 'float',
+          'ue_Ovh_MiscRecpt' : 'float',
+          'ue_Ovh_NextLbrJob' : 'float',
+          'ue_Ovh_PhysInv' : 'float',
+          'ue_Ovh_QtyEnding' : 'float',
+          'ue_Ovh_QtyMove' : 'float',
+          'ue_Ovh_ReturnIssueJob' : 'float',
+          'ue_Ovh_RMA' : 'float',
+          'ue_Ovh_ShipCO' : 'float',
+          'ue_Ovh_TransferOrder' : 'float',
+          'ue_Ovh_TransferOrderLoss' : 'float',
+          'ue_Vovhd_Beginning' : 'float',
+          'ue_Vovhd_FinishJob' : 'float',
+          'ue_Vovhd_NextLbrJob' : 'float',
+          'ue_Vovhd_IssueWIPJob' : 'float',
+          'ue_Vovhd_ReturnIssueJob' : 'float',
+          'ue_Vovhd_CreateJob' : 'float',
+          'ue_Vovhd_ShipCO' : 'float',
+          'ue_Vovhd_RMA' : 'float',
+          'ue_Vovhd_QtyMove' : 'float',
+          'ue_Vovhd_TransferOrder' : 'float',
+          'ue_Vovhd_TransferOrderLoss' : 'float',
+          'ue_Vovhd_MiscIssue' : 'float',
+          'ue_Vovhd_MiscRecpt' : 'float',
+          'ue_Vovhd_CycleCount' : 'float',
+          'ue_Vovhd_PhysInv' : 'float',
+          'ue_Vovhd_QtyEnding' : 'float',
+          'ue_Vovhd_Adjustment' : 'float',
+          'ue_OustandingCO_VovhdCost' : 'float'
+        }
+
+  - id: result_logs
+    type: io.kestra.plugin.core.debug.Return
+    format: |
+      Total rows: {{ outputs.run_el_movement_value_mp_new.outputs.total_rows }}
+      Start Date: {{ outputs.run_el_movement_value_mp_new.outputs.start_date }}
+      End Date: {{ outputs.run_el_movement_value_mp_new.outputs.end_date }}
+      Year: {{ outputs.run_el_movement_value_mp_new.outputs.year }}
+      Month: {{ outputs.run_el_movement_value_mp_new.outputs.month }}
+

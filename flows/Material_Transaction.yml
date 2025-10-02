@@ -1,0 +1,131 @@
+id: Material_Transaction
+namespace: dev
+labels:
+  Type: Source
+  Group: Ledger
+  Owner: Finance
+
+triggers:
+  - id: daily_3am
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 3 * * *"
+
+variables:
+  n: 20000
+  dataset: mp_dbt
+
+tasks:
+  - id: calculate_dates
+    type: io.kestra.plugin.core.debug.Return
+    format: |
+      {
+        "start_date": "{{ trigger.date ?? execution.startDate | dateAdd(-2, 'DAYS') | date('yyyy-MM-dd') }}",
+        "end_date": "{{ trigger.date ?? execution.startDate | date('yyyy-MM-dd') }}"
+      }
+
+  - id: run_el_material_transaction
+    type: io.kestra.plugin.core.flow.Subflow
+    flowId: generic_extract_load_infor_append
+    namespace: dev
+    
+    inputs:
+      append_strategy: DAILY
+      api_path_and_query: https://csi10a.erpsl.se2.inforcloudsuite.com/IDORequestService/ido/load/SLMatltrans?properties=AwaitingEop,Backflush,Cost,CostCode,DerAcct,DerAmt,DerCoHistStat,DerEndingItem,DerEndingScheduleId,DerEndingTransDate,DerExtCost,DerFovhdAcct,DerFovhdAmt,DerFrom,DerLbrAcct,DerLbrAmt,DerMatlAcct,DerMatlAmt,DerMatltranCost,DerMatlTranViewTotalPosted,DerOutAcct,DerOutAmt,DerPoHistStat,DerPrintCost,DerStartingItem,DerStartingScheduleId,DerStartingTransDate,DerTo,DerTotalPosted,DerTransSeq,DerType,DerVovhdAcct,DerVovhdAmt,DocumentNum,FamilyCodeDescription,FovhdCost,InWorkflow,Item,ItemAbcCode,ItemDescription,ItemFamilyCode,ItemMatlType,ItemPlanCode,ItemPMTCode,ItemProductCode,ItmItemDesc,ItmUM,LbrCost,Loc,Lot,MatlCost,MatlTranViewItemDesc,MatlTranViewItemUM,MatlTranViewReasonDesc,MatlTranViewTotalCost,MatlTranViewTotalPost,MatlTranViewTypeDesc,NoteExistsFlag,OutCost,ProductCodeDescription,ReasonCode,RecordDate,RefLineSuf,RefNum,RefRelease,RefType,RowPointer,TransDate,TransNum,TransType,TrnFromSite,UbAmountCCNeg,UbAmountCCPos,UbDateShort,UbDisplayTransType,UbFromLoc,UbToLoc,UbTotPost,UserCode,VovhdCost,Wc,Whse,Qty,MatlTranViewCost,ItmPMTCode,ItmPlanCode,CreateDate,EmpNum,ItmBuyer&filter=RecordDate >= '{{ json(outputs.calculate_dates.value).start_date }}' AND RecordDate <= '{{ json(outputs.calculate_dates.value).end_date }}'&recordCap={{ vars.n }}&loadType=NEXT
+      
+      start_date: "{{ json(outputs.calculate_dates.value).start_date }}"
+      end_date: "{{ json(outputs.calculate_dates.value).end_date }}"
+      bq_destination_table: "{{ vars.dataset }}.material_transaction"
+      date_field: "RecordDate"
+      bq_schema_fields: |
+        [
+          {"name": "AwaitingEop", "type": "INTEGER", "mode": "NULLABLE"},
+          {"name": "Backflush", "type": "INTEGER", "mode": "NULLABLE"},
+          {"name": "Cost", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "CostCode", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "DerAcct", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "DerAmt", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "DerCoHistStat", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "DerEndingItem", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "DerEndingScheduleId", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "DerEndingTransDate", "type": "TIMESTAMP", "mode": "NULLABLE"},
+          {"name": "DerExtCost", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "DerFovhdAcct", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "DerFovhdAmt", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "DerFrom", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "DerLbrAcct", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "DerLbrAmt", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "DerMatlAcct", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "DerMatlAmt", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "DerMatltranCost", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "DerMatlTranViewTotalPosted", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "DerOutAcct", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "DerOutAmt", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "DerPoHistStat", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "DerPrintCost", "type": "INTEGER", "mode": "NULLABLE"},
+          {"name": "DerStartingItem", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "DerStartingScheduleId", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "DerStartingTransDate", "type": "TIMESTAMP", "mode": "NULLABLE"},
+          {"name": "DerTo", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "DerTotalPosted", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "DerTransSeq", "type": "INTEGER", "mode": "NULLABLE"},
+          {"name": "DerType", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "DerVovhdAcct", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "DerVovhdAmt", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "DocumentNum", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "FamilyCodeDescription", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "FovhdCost", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "InWorkflow", "type": "INTEGER", "mode": "NULLABLE"},
+          {"name": "Item", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ItemAbcCode", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ItemDescription", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ItemFamilyCode", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ItemMatlType", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ItemPlanCode", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ItemPMTCode", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ItemProductCode", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ItmItemDesc", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ItmUM", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "LbrCost", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "Loc", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "Lot", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "MatlCost", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "MatlTranViewItemDesc", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "MatlTranViewItemUM", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "MatlTranViewReasonDesc", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "MatlTranViewTotalCost", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "MatlTranViewTotalPost", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "MatlTranViewTypeDesc", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "NoteExistsFlag", "type": "INTEGER", "mode": "NULLABLE"},
+          {"name": "OutCost", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "ProductCodeDescription", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ReasonCode", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "RecordDate", "type": "TIMESTAMP", "mode": "NULLABLE"},
+          {"name": "RefLineSuf", "type": "INTEGER", "mode": "NULLABLE"},
+          {"name": "RefNum", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "RefRelease", "type": "INTEGER", "mode": "NULLABLE"},
+          {"name": "RefType", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "RowPointer", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "TransDate", "type": "TIMESTAMP", "mode": "NULLABLE"},
+          {"name": "TransNum", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "TransType", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "TrnFromSite", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "UbAmountCCNeg", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "UbAmountCCPos", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "UbDateShort", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "UbDisplayTransType", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "UbFromLoc", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "UbToLoc", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "UbTotPost", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "UserCode", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "VovhdCost", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "Wc", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "Whse", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "Qty", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "MatlTranViewCost", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "ItmPMTCode", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ItmPlanCode", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "CreateDate", "type": "TIMESTAMP", "mode": "NULLABLE"},
+          {"name": "EmpNum", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ItmBuyer", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "_ItemId", "type": "STRING", "mode": "NULLABLE"}
+        ]

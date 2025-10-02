@@ -11,7 +11,7 @@ tasks:
       - pip install dbt-core dbt-bigquery
     projectDir: dbt
     commands:
-      - "dbt build --project-dir dbt --models mart.DataInfor"
+      - "dbt build --project-dir dbt --models mart.DataInfor+ --show-all-deprecations"
     taskRunner:
       type: io.kestra.plugin.scripts.runner.docker.Docker
     profiles: |
@@ -41,8 +41,7 @@ tasks:
             type: bigquery
         target: prod
 
-
 triggers:
-  - id: daily_4am
+  - id: daily_8-12am
     type: io.kestra.plugin.core.trigger.Schedule
-    cron: "0 20 * * *"
+    cron: "0 9,12 * * *"

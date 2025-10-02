@@ -1,0 +1,41 @@
+id: postgre_to_bq
+namespace: dev
+
+variables:
+  project_id: "mitraprodin-data-warehouse"
+
+tasks:
+  - id: get_data
+    type: io.kestra.plugin.jdbc.mysql.Query
+    url: jdbc:mysql://mitraprodin.cshpjnhssmv4.ap-southeast-1.rds.amazonaws.com/hrpayroll
+    username: ady
+    password: "{{ kv('HRIS_DB_PASS') }}"
+    sql: |
+      SELECT
+        u.m_user_id,
+        u.effective_date,
+        FROM_UNIXTIME(u.effective_date) AS formatted_date,
+        u.id_m_user_first_approver 
+      FROM 
+        user_history_section u 
+      WHERE 
+        FROM_UNIXTIME(u.effective_date) BETWEEN '2025-07-01' AND '2025-07-31'
+        AND u.id_m_user_first_approver IS NOT NULL
+    fetchType: STORE
+  
+  - id: convert_to_csv
+    type: io.kestra.plugin.serdes.csv.IonToCsv
+    from: "{{ outputs.get_data.uri }}"
+  
+  - id: load_to_bigquery
+    type: io.kestra.plugin.gcp.bigquery.Load
+    from: "{{ outputs.convert_to_csv.uri }}"
+    projectId: "{{ vars.project_id }}"
+    serviceAccount: "{{ kv('GCP_SERVICE_ACC_ETL') }}"
+    destinationTable: "mp_infor.section_history"
+    format: CSV
+    autodetect: true
+    csvOptions:
+      allowJaggedRows: true
+      skipLeadingRows: 1
+    writeDisposition: WRITE_APPEND

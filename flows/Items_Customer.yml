@@ -1,0 +1,56 @@
+id: Items_Customer
+namespace: dev
+labels:
+  Type: Source
+  Source: INFOR
+
+triggers:
+  - id: daily_3am
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "5 3 * * *"
+
+variables:
+  dataset: mp_dbt
+
+tasks:
+
+  - id: run_el_items_customer
+    type: io.kestra.plugin.core.flow.Subflow
+    flowId: generic_extract_load_infor_replace
+    namespace: dev
+    
+    inputs:
+      api_path_and_query: https://csi10a.erpsl.se2.inforcloudsuite.com/IDORequestService/ido/load/ue_ID_SLItemcusts?properties=ue_ConesperSC,ue_UnitBulkperSC,ue_ProductCode,ue_CreatedBy,ue_UpdatedBy,ue_CreateDate,Uf_MP04_CIPrintTipCategory,ue_ItmRowPointer,AdrCurrCode,AdrName,CustItem,CustItemSeq,CustNum,DerItem,DerPrice,Item,ItmDescription,ItmSerialTracked,ItmUM,ItmUnitCost,Rank,RecordDate,RowPointer,UM,itmcstUf_MP04_CIDesc,itmcstUf_MP04_CustProdCode,itmcstUf_MP04_ConeCategory
+
+      bq_destination_table: "{{ vars.dataset }}.itemsCustomer"
+      bq_schema_fields: |
+        [
+          {"name": "ue_ConesperSC", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_UnitBulkperSC", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_ProductCode", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_CreatedBy", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_UpdatedBy", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_CreateDate", "type": "TIMESTAMP", "mode": "NULLABLE"},
+          {"name": "Uf_MP04_CIPrintTipCategory", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_ItmRowPointer", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "AdrCurrCode", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "AdrName", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "CustItem", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "CustItemSeq", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "CustNum", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "DerItem", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "DerPrice", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "Item", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ItmDescription", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ItmSerialTracked", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ItmUM", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ItmUnitCost", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "Rank", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "RecordDate", "type": "TIMESTAMP", "mode": "NULLABLE"},
+          {"name": "RowPointer", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "UM", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "itmcstUf_MP04_CIDesc", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "itmcstUf_MP04_CustProdCode", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "itmcstUf_MP04_ConeCategory", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "_ItemId", "type": "STRING", "mode": "NULLABLE"}
+        ]

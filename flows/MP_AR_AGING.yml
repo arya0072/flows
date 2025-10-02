@@ -1,0 +1,122 @@
+id: MP_AR_AGING
+namespace: dev
+
+variables:
+  infor_token: "{{ kv('INFOR_API_TOKEN') }}"
+  month_year: "{{ inputs.start_date | date('yyyy-MM') }}"
+  project_id: "mitraprodin-data-warehouse"
+  bq_dest_table: "mp_infor.AR_AGING_2"
+
+inputs:
+  - id: start_date
+    type: DATETIME
+    displayName: "Start Date"
+
+  - id: end_date
+    type: DATETIME
+    displayName: "End Date"
+  
+tasks:
+
+  - id: remove_duplicates
+    type: io.kestra.plugin.gcp.bigquery.Query
+    projectId: "{{ vars.project_id }}"
+    serviceAccount: "{{ kv('GCP_SERVICE_ACC_ETL') }}"
+    sql: |
+      DELETE FROM `{{ inputs.bq_destination_table }}`
+      WHERE
+      {% if inputs.append_strategy == "DAILY" %}
+          {{ inputs.date_field }} BETWEEN '{{ inputs.start_date | date("yyyy-MM-dd") }}'
+          AND '{{ inputs.end_date | date("yyyy-MM-dd") }}'
+      {% elseif inputs.append_strategy == "MONTHLY" %}
+          {{ inputs.date_field }} = '{{ inputs.start_date | date("yyyy-MM") }}'
+      {% elseif inputs.append_strategy == "MONTHLY_YEAR" %}
+          {{ inputs.date_year_field }} = '{{ inputs.start_date | date("yyyy") }}'
+          AND {{ inputs.date_field }} = '{{ inputs.start_date | date("MMM") | upper }}'
+      {% endif %}
+      {% if inputs.site is defined %}
+          AND site = '{{ inputs.site }}'
+      {% endif %}
+  - id: extract_infor_data
+    type: io.kestra.plugin.core.http.Request
+    headers:
+      Authorization: "{{ kv('INFOR_API_TOKEN')}}\r\n   "
+      X-Infor-MongooseConfig: "\"MITRAPRODIN_PRD_MITRAPRO\""
+    uri: https://csi10a.erpsl.se2.inforcloudsuite.com/IDORequestService/ido/load/SL_MP_AccountReceivableAgingSumByInvoice?properties=CustNum,CustName,InvNum,InvDate,DueDate,CurrCode,exch_rate,AgingBucket1,AgingBucket2,AgingBucket3,AgingBucket4,AgingBucket5,AgingBucket6,AgingBucket7,Total&clm=MP_AccountReceivableAging_SumByInvoiceSp&clmparam=DD,{{ inputs.start_date }},{{ inputs.end_date }},1,,,,,0
+
+  - id: transform_data
+    type: io.kestra.plugin.scripts.python.Script
+    beforeCommands:
+      - pip install pandas kestra
+    inputFiles:
+      data.json: |
+        {{ outputs.extract_infor_data.body }}
+    outputFiles:
+      - transformed_data.csv
+    script: |
+      import pandas as pd
+      import json
+      from kestra import Kestra
+
+      logger = Kestra.logger()
+
+      def update_datatype(df):
+        column_types = {
+            'InvDate': 'date',
+            'DueDate': 'date',
+            'exch_rate': 'float',
+            'AgingBucket1': 'float',
+            'AgingBucket2': 'float',
+            'AgingBucket3': 'float',
+            'AgingBucket4': 'float',
+            'AgingBucket5': 'float',
+            'AgingBucket6': 'float',
+            'AgingBucket7': 'float',
+            'Total': 'float'
+        }
+
+        for key, value in column_types.items():
+            if key in df.columns:
+                if value == 'int':
+                    df[key] = df[key].astype(float).astype('Int64')
+                elif value == 'float':
+                    df[key] = df[key].astype(float)
+                else:
+                    df[key] = pd.to_datetime(df[key])
+                logger.info(f'Changed column {key} to {value}')
+            else:
+                logger.warning(f'Column {key} not found in DataFrame')
+        return df
+
+      def add_periode_month_year(df, value):
+        print(f"Adding 'month_year' column with value: {value}")
+        df['month_year'] = value
+        return df
+
+      with open('data.json', 'r') as f:
+          api_response = json.load(f)
+
+      infor_data = api_response['Items']
+      df = pd.json_normalize(infor_data)
+
+      df = update_datatype(df)
+      final_data = add_periode_month_year(df, '{{ vars.month_year }}')
+      df.to_csv('transformed_data.csv', index=False)
+
+  - id: load_to_bq
+    type: io.kestra.plugin.gcp.bigquery.Load
+    from: "{{ outputs.transform_data.outputFiles['transformed_data.csv'] }}"
+    projectId: "{{ vars.project_id }}"
+    serviceAccount: "{{ kv('GCP_SERVICE_ACC_ETL') }}"
+    destinationTable: "mp_infor.AR_AGING_2"
+    format: CSV
+    autodetect: true
+    csvOptions:
+      allowJaggedRows: true
+      skipLeadingRows: 1
+  
+  - id: clean_up
+    type: io.kestra.plugin.core.storage.Delete
+    uri: "{{ outputs.transform_data.outputFiles['transformed_data.csv'] }}"
+
+disabled: false

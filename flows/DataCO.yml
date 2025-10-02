@@ -1,17 +1,19 @@
-id: MetaProject
+id: DataCO
 namespace: dev
+labels:
+  Owner: Finance
 
 tasks:
   - id: dbt
     type: io.kestra.plugin.dbt.cli.DbtCLI
     namespaceFiles:
       enabled: true
-    containerImage: python:slim
-    beforeCommands: 
-      - pip install dbt-core dbt-bigquery
+    containerImage: ghcr.io/kestra-io/dbt-bigquery:latest
+    # beforeCommands:
+    #   - pip install dbt-core dbt-bigquery
     projectDir: dbt
     commands:
-      - "dbt build --project-dir dbt --models +mart.MetaProject --show-all-deprecations"
+      - "dbt build --project-dir dbt --models mart.DataInfor.CO --show-all-deprecations"
     taskRunner:
       type: io.kestra.plugin.scripts.runner.docker.Docker
     profiles: |
@@ -40,9 +42,3 @@ tasks:
             threads: 4
             type: bigquery
         target: prod
-
-
-triggers:
-  - id: every_5_hours
-    type: io.kestra.plugin.core.trigger.Schedule
-    cron: "0 */5 * * *" # Menjalankan job setiap 5 jam

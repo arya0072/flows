@@ -1,0 +1,30 @@
+id: Items_MP
+namespace: dev
+labels:
+  Type: Source
+  Source: INFOR
+
+triggers:
+  - id: daily_3am
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "5 3 * * *"
+
+variables:
+  dataset: mp_dbt
+
+tasks:
+
+  - id: run_el_items_mp    
+    type: io.kestra.plugin.core.flow.Subflow
+    flowId: generic_extract_load_infor_replace
+    namespace: dev
+    
+    inputs:
+      api_path_and_query: https://csi10a.erpsl.se2.inforcloudsuite.com/IDORequestService/ido/load/SLItems?properties=Item,Description,Charfld1,Overview,ProductCode,UM,ue_MP102_GetProdCategory,RowPointer,RecordDate,Job,Suffix,DerCurUCost,CurMatlCost
+
+      bq_destination_table: "{{ vars.dataset }}.items"
+      bq_schema_fields: |
+        [
+          {"name": "RecordDate", "type": "TIMESTAMP"},
+          {"name": "CurMatlCost", "type": "FLOAT"}
+        ]

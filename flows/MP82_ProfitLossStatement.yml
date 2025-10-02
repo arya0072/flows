@@ -1,0 +1,62 @@
+id: MP82_ProfitLossStatement
+namespace: dev
+labels:
+  Type: Source
+  Group: MP82
+
+triggers:
+  - id: daily
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "@daily"
+
+inputs:
+  - id: date
+    type: DATE
+    required: true
+    displayName: Date
+  
+variables:
+  n: 20000
+  dataset: mp_infor
+  site: MITRAPRO
+
+tasks:
+  - id: calculate_dates
+    type: io.kestra.plugin.core.debug.Return
+    format: |
+      {
+        "year": "{% if inputs.date is defined and inputs.date is not null %}{{ inputs.date | date('yyyy') }}{% else %}{{ trigger.date ?? execution.startDate | date('yyyy') }}{% endif %}",
+        "month": "{% if inputs.date is defined and inputs.date is not null %}{{ inputs.date | date('MM') }}{% else %}{{ trigger.date ?? execution.startDate | date('MM') }}{% endif %}",
+        "date": "{% if inputs.date is defined and inputs.date is not null %}{{ inputs.date | date('yyyy-MM-dd') }}{% else %}{{ trigger.date ?? execution.startDate | date('yyyy-MM-dd') }}{% endif %}"
+      }
+
+  - id: MP82_ProfitLossStatement_Paralel
+    type: io.kestra.plugin.core.flow.Parallel
+    tasks:
+
+      - id: MP82_ProfitLossStatement
+        type: io.kestra.plugin.core.flow.Subflow
+        flowId: generic_extract_load_infor_append
+        namespace: dev
+        
+        inputs:
+          append_strategy: MONTHLY_SITE
+          api_path_and_query: https://csi10a.erpsl.se2.inforcloudsuite.com/IDORequestService/ido/load/ue_ID_MP82_ProfitAndLossStatement?properties=Account,AccountClass,Description,Groups,Name,Period,PrctSales1,PrctSales2,PrevPeriod,PrevYear,SumPeriod,SumYTD,UnitCode1,UnitCode2,UnitCode3,UnitCode4,YTD&clm=SP_MP82_ProfitAndLossStatement&clmparam={{ vars.site }},{{ json(outputs.calculate_dates.value).month }},{{ json(outputs.calculate_dates.value).year }},1, , ,1 , , ,1 , , ,1 , , 
+
+          start_date: "{{ json(outputs.calculate_dates.value).date }}"
+          bq_destination_table: "{{ vars.dataset }}.mp82_profitloss_statement"
+          date_field: "month_year"
+          site: "{{ vars.site }}"
+          site_field: site
+          bq_schema_fields: |
+            {
+              'Period' : 'float',
+              'PrctSales1' : 'float',
+              'PrctSales2' : 'float',
+              'PrevPeriod' : 'float',
+              'PrevYear' : 'float',
+              'SumPeriod' : 'float',
+              'SumYTD' : 'float',
+              'YTD' : 'float'
+            }
+

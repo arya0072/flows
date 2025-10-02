@@ -15,7 +15,7 @@ tasks:
       - pip install dbt-core dbt-bigquery
     projectDir: dbt
     commands:
-      - "dbt run --select {{ inputs.dbt_model }} --project-dir dbt"
+      - "dbt run --select +{{ inputs.dbt_model }} --project-dir dbt"
     taskRunner:
       type: io.kestra.plugin.scripts.runner.docker.Docker
     profiles: |

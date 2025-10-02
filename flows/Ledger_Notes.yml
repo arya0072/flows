@@ -1,0 +1,48 @@
+id: Ledger_Notes
+namespace: dev
+labels:
+  Type: Source
+  Group: Ledger
+
+triggers:
+  - id: daily_3am
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 3 * * *"
+
+variables:
+  n: 20000
+  dataset: mp_dbt
+
+tasks:
+  - id: calculate_dates
+    type: io.kestra.plugin.core.debug.Return
+    format: |
+      {
+        "start_date": "{{ trigger.date ?? execution.startDate | dateAdd(-2, 'DAYS') | date('yyyy-MM-dd') }}",
+        "end_date": "{{ trigger.date ?? execution.startDate | date('yyyy-MM-dd') }}"
+      }
+
+  - id: run_el_ledger_notes
+    type: io.kestra.plugin.core.flow.Subflow
+    flowId: generic_extract_load_infor_append
+    namespace: dev
+    
+    inputs:
+      append_strategy: DAILY
+      api_path_and_query: https://csi10a.erpsl.se2.inforcloudsuite.com/IDORequestService/ido/load/ue_ID_MP_SLObjectNotes?properties=DerDesc,DerContent,RecordDate,ue_SpcnRecordDate,RefRowPointer,RowPointer&filter=NoteHeaderToken=4 AND ue_SpcnRecordDate >= '{{ json(outputs.calculate_dates.value).start_date }}' AND ue_SpcnRecordDate <= '{{ json(outputs.calculate_dates.value).end_date }}'&recordCap={{ vars.n }}&loadType=NEXT
+
+      start_date: "{{ json(outputs.calculate_dates.value).start_date }}"
+      end_date: "{{ json(outputs.calculate_dates.value).end_date }}"
+      bq_destination_table: "{{ vars.dataset }}.ledger_notes"
+      date_field: "RecordDate"
+      bq_schema_fields: |
+        [
+          {"name": "DerDesc", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "DerContent", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "RecordDate", "type": "TIMESTAMP", "mode": "NULLABLE"},
+          {"name": "ue_SpcnRecordDate", "type": "TIMESTAMP", "mode": "NULLABLE"},
+          {"name": "RefRowPointer", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "RowPointer", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "_ItemId", "type": "STRING", "mode": "NULLABLE"}
+        ]
+disabled: true

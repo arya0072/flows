@@ -1,0 +1,41 @@
+id: transform_ledger
+namespace: dev
+
+labels:
+  Type: View
+  Owner: Finance
+
+triggers:
+  - id: upstream_ledger_source
+    type: io.kestra.plugin.core.trigger.Flow
+    preconditions:
+      id: test
+      flows:
+        - namespace: dev
+          flowId: Ledger
+          states: [SUCCESS]
+        - namespace: dev
+          flowId: Ledger_MPKB
+          states: [SUCCESS]  
+        - namespace: dev
+          flowId: Ledger_Notes
+          states: [SUCCESS, WARNING]
+        - namespace: dev
+          flowId: Ledger_Notes_MPKB
+          states: [SUCCESS, WARNING] 
+        - namespace: dev
+          flowId: Material_Transaction
+          states: [SUCCESS]       
+      timeWindow: 
+        type: SLIDING_WINDOW
+        window: PT1H
+
+tasks:
+  - id: run_ledger_models
+    type: io.kestra.plugin.core.flow.Subflow
+    flowId: generic_transform_dbt_build
+    namespace: dev
+
+    inputs:
+      dbt_models: DataInfor.Ledger
+      environment: prod

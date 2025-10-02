@@ -1,0 +1,40 @@
+id: Items_Attribute
+namespace: dev
+labels:
+  Type: Source
+  Source: INFOR
+
+triggers:
+  - id: daily_3am
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "5 3 * * *"
+
+variables:
+  dataset: mp_dbt
+
+tasks:
+
+  - id: run_el_item_attribute
+    type: io.kestra.plugin.core.flow.Subflow
+    flowId: generic_extract_load_infor_replace
+    namespace: dev
+    
+    inputs:
+      api_path_and_query: https://csi10a.erpsl.se2.inforcloudsuite.com/IDORequestService/ido/load/SLAttributes?properties=AttributeLabel,AttributeValue,DerMessage,CharValue,DecimalValue,LogicalValue,ValColName,Type,AttrGroup,AttrGroupClass,RefRowPointer
+
+      bq_destination_table: "{{ vars.dataset }}.item_attribute_all"
+      bq_schema_fields: |
+        [
+          {"name": "AttributeLabel", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "AttributeValue", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "DerMessage", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "CharValue", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "DecimalValue", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "LogicalValue", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ValColName", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "Type", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "AttrGroup", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "AttrGroupClass", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "RefRowPointer", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "_ItemId", "type": "STRING", "mode": "NULLABLE"}
+        ]

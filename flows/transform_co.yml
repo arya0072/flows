@@ -1,0 +1,44 @@
+id: transform_co
+namespace: dev
+
+labels:
+  Type: View
+  Owner: Finance
+
+triggers:
+  - id: upstream_co_source
+    type: io.kestra.plugin.core.trigger.Flow
+    preconditions:
+      id: test
+      flows:
+        - namespace: dev
+          flowId: Items_MP
+          states: [SUCCESS]
+        - namespace: dev
+          flowId: MP102_ItemAttribute
+          states: [SUCCESS]  
+        - namespace: dev
+          flowId: Items_Attribute
+          states: [SUCCESS]
+        - namespace: dev
+          flowId: Items_Customer
+          states: [SUCCESS] 
+        - namespace: dev
+          flowId: Outstanding_CO
+          states: [SUCCESS] 
+        - namespace: dev
+          flowId: Budget_Sales
+          states: [SUCCESS]      
+      timeWindow: 
+        type: SLIDING_WINDOW
+        window: PT1H
+
+tasks:
+  - id: run_ledger_models
+    type: io.kestra.plugin.core.flow.Subflow
+    flowId: generic_transform_dbt_build
+    namespace: dev
+
+    inputs:
+      dbt_models: Dev
+      environment: prod

@@ -1,0 +1,71 @@
+id: MP45_MoveLocation_MP
+namespace: dev
+labels:
+  Type: Source
+  Group: Inventory Movement
+
+triggers:
+  - id: daily_3am
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 3 * * *"
+
+inputs:
+  - id: start_date_manual
+    type: DATE
+    required: false
+  - id: end_date_manual
+    type: DATE
+    required: false
+  - id: site
+    type: SELECT
+    required: false
+    values:
+      - KBPR
+      - MP
+      - KTWL
+      - FGJM
+
+variables:
+  n: 20000
+  dataset: mp_dbt
+
+tasks:
+  - id: calculate_dates
+    type: io.kestra.plugin.core.debug.Return
+    format: |
+      {
+        "start_date": "{{ trigger.date ?? execution.startDate | dateAdd(-2, 'DAYS') | date('yyyy-MM-dd') }}",
+        "end_date": "{{ trigger.date ?? execution.startDate | date('yyyy-MM-dd') }}"
+      }
+
+  - id: run_el_movement_location_mp
+    type: io.kestra.plugin.core.flow.Subflow
+    flowId: generic_extract_load_infor_append
+    namespace: dev
+    
+    inputs:
+      append_strategy: MONTHLY_SITE
+      api_path_and_query: https://csi10a.erpsl.se2.inforcloudsuite.com/IDORequestService/ido/load/ue_ID_MP45_InventoryMoveQty?properties=ue_Item,ue_ItemDesc,ue_ProductCode,ue_ProdDesc,ue_UM,ue_ConvFactor,ue_ToUm,ue_Loc,ue_LocDesc,ue_InvAcct,ue_QtyEnding,ue_QtyEnding_Pcs&clm=SP_MP45_StockMoveQtyLoc&clmparam={{ inputs.start_date_manual }},,,,,1
+
+      start_date: "{{ inputs.start_date_manual }}"
+      end_date: "{{ inputs.end_date_manual }}"
+      bq_destination_table: "{{ vars.dataset }}.movement_location_mp"
+      date_field: "Month"
+      site: "{{ inputs.site }}"
+      site_field: Site
+      bq_schema_fields: |
+        {
+          'ue_ConvFactor' : 'float',
+          'ue_QtyEnding' : 'float',
+          'ue_QtyEnding_Pcs' : 'float'
+        }
+
+  - id: result_logs
+    type: io.kestra.plugin.core.debug.Return
+    format: |
+      Total rows: {{ outputs.run_el_movement_location_mp.outputs.total_rows }}
+      Start Date: {{ outputs.run_el_movement_location_mp.outputs.start_date }}
+      End Date: {{ outputs.run_el_movement_location_mp.outputs.end_date }}
+      Year: {{ outputs.run_el_movement_location_mp.outputs.year }}
+      Month: {{ outputs.run_el_movement_location_mp.outputs.month }}
+

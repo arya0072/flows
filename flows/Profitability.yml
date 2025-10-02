@@ -1,0 +1,148 @@
+id: Profitability
+namespace: dev
+labels:
+  Type: Source
+  Group: Movement
+
+triggers:
+  - id: monthly
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "@monthly"
+
+inputs:
+  - id: start_date_manual
+    type: DATE
+    required: true
+    displayName: Start Date
+  - id: end_date_manual
+    type: DATE
+    required: true
+    displayName: End Date
+  
+
+variables:
+  n: 20000
+  dataset: mp_infor
+  site: MITRAPRO
+
+tasks:
+  - id: calculate_dates
+    type: io.kestra.plugin.core.debug.Return
+    format: |
+      {
+        "start_date": "{% if inputs.start_date_manual is defined and inputs.start_date_manual is not null %}{{ inputs.start_date_manual | date('yyyy-MM-dd') }}{% else %}{{ trigger.date | dateAdd(-1, 'MONTHS') | date('yyyy-MM-01') }}{% endif %}",
+        "end_date": "{% if inputs.end_date_manual is defined and inputs.end_date_manual is not null %}{{ inputs.end_date_manual | date('yyyy-MM-dd') }}{% else %}{{ trigger.date | dateAdd(-1, 'DAYS') | date('yyyy-MM-dd') }}{% endif %}"
+      }
+
+  - id: ProfitabilityParalel
+    type: io.kestra.plugin.core.flow.Parallel
+    tasks:
+
+#-------------------------------------------------------------------------- ACTUAL --------------------------------------------------------------------------#
+      - id: ProfitabilityActual
+        type: io.kestra.plugin.core.flow.Subflow
+        flowId: generic_extract_load_infor_append
+        namespace: dev
+        
+        inputs:
+          append_strategy: MONTHLY_SITE
+          api_path_and_query: https://csi10a.erpsl.se2.inforcloudsuite.com/IDORequestService/ido/load/ue_ID_MP123_CostOfProduction?properties=ue_CustName,ue_CustNum,ue_Item,ue_ItemDesc,ue_ItemType,ue_Job,ue_LaborCost,ue_MaterialCost,ue_VovhdCost,ue_FovhdCost,ue_OperNum,ue_ProdCodeDesc,ue_ProductCode,ue_Qty,ue_Suffix,ue_TotalCost,ue_TotalLaborCost,ue_TotalMaterialCost,ue_TotalVovhdCost,ue_TotalFovhdCost,ue_TransDate,ue_UM,ue_WC,ue_WCDesc,RowPointer,ue_OutsideCost,ue_TotalOutsideCost,ue_whse&clm=SP_MP123_CostProduction&clmparam=ACT, {{ json(outputs.calculate_dates.value).start_date }}, {{ json(outputs.calculate_dates.value).end_date }}, 1UN2CU3PL4RE5RO6CO7PA8PC1AC2AS3QC4PA9TP10H, , , , , DTL, BOTH,,
+
+          start_date: "{{ json(outputs.calculate_dates.value).start_date }}"
+          end_date: "{{ json(outputs.calculate_dates.value).end_date }}"
+          bq_destination_table: "{{ vars.dataset }}.cost_of_production_mp_new"
+          date_field: "month_year"
+          site: "{{ vars.site }}"
+          site_field: site
+          bq_schema_fields: |
+            {
+              'ue_LaborCost' : 'float',
+              'ue_MaterialCost' : 'float',
+              'ue_VovhdCost' : 'float',
+              'ue_FovhdCost' : 'float',
+              'ue_Qty' : 'float',
+              'ue_TotalCost' : 'float',
+              'ue_TotalLaborCost' : 'float',
+              'ue_TotalMaterialCost' : 'float',
+              'ue_TotalVovhdCost' : 'float',
+              'ue_TotalFovhdCost' : 'float',
+              'ue_TransDate' : 'date',
+              'ue_OutsideCost' : 'float',
+              'ue_TotalOutsideCost' : 'float'
+            }
+
+#-------------------------------------------------------------------------- ABSORB --------------------------------------------------------------------------#
+      - id: ProfitabilityAbsorb
+        type: io.kestra.plugin.core.flow.Subflow
+        flowId: generic_extract_load_infor_append
+        namespace: dev
+        
+        inputs:
+          append_strategy: MONTHLY_SITE
+          api_path_and_query: https://csi10a.erpsl.se2.inforcloudsuite.com/IDORequestService/ido/load/ue_ID_MP123_CostOfProduction?properties=ue_CustName,ue_CustNum,ue_Item,ue_ItemDesc,ue_ItemType,ue_Job,ue_LaborCost,ue_MaterialCost,ue_VovhdCost,ue_FovhdCost,ue_OperNum,ue_ProdCodeDesc,ue_ProductCode,ue_Qty,ue_Suffix,ue_TotalCost,ue_TotalLaborCost,ue_TotalMaterialCost,ue_TotalVovhdCost,ue_TotalFovhdCost,ue_TransDate,ue_UM,ue_WC,ue_WCDesc,RowPointer,ue_OutsideCost,ue_TotalOutsideCost,ue_whse&clm=SP_MP123_CostProduction&clmparam=ABS, {{ json(outputs.calculate_dates.value).start_date }}, {{ json(outputs.calculate_dates.value).end_date }}, 1UN2CU3PL4RE5RO6CO7PA8PC1AC2AS3QC4PA9TP10H, , , , , DTL, BOTH
+
+          start_date: "{{ json(outputs.calculate_dates.value).start_date }}"
+          end_date: "{{ json(outputs.calculate_dates.value).start_date }}"
+          bq_destination_table: "{{ vars.dataset }}.material_usage_mp_new"
+          date_field: "month_year"
+          site: "{{ vars.site }}"
+          site_field: site
+          bq_schema_fields: |
+            {
+              'ue_LaborCost' : 'float',
+              'ue_MaterialCost' : 'float',
+              'ue_VovhdCost' : 'float',
+              'ue_FovhdCost' : 'float',
+              'ue_Qty' : 'float',
+              'ue_TotalCost' : 'float',
+              'ue_TotalLaborCost' : 'float',
+              'ue_TotalMaterialCost' : 'float',
+              'ue_TotalVovhdCost' : 'float',
+              'ue_TotalFovhdCost' : 'float',
+              'ue_TransDate' : 'date',
+              'ue_OutsideCost' : 'float',
+              'ue_TotalOutsideCost' : 'float'
+            }
+
+#-------------------------------------------------------------------------- PLAN --------------------------------------------------------------------------#
+      - id: ProfitabilityPlan
+        type: io.kestra.plugin.core.flow.Subflow
+        flowId: generic_extract_load_infor_append
+        namespace: dev
+        
+        inputs:
+          append_strategy: MONTHLY_SITE
+          api_path_and_query: https://csi10a.erpsl.se2.inforcloudsuite.com/IDORequestService/ido/load/ue_ID_MP123_CostOfProduction?properties=ue_CustName,ue_CustNum,ue_Item,ue_ItemDesc,ue_ItemType,ue_Job,ue_LaborCost,ue_MaterialCost,ue_VovhdCost,ue_FovhdCost,ue_OperNum,ue_ProdCodeDesc,ue_ProductCode,ue_Qty,ue_Suffix,ue_TotalCost,ue_TotalLaborCost,ue_TotalMaterialCost,ue_TotalVovhdCost,ue_TotalFovhdCost,ue_TransDate,ue_UM,ue_WC,ue_WCDesc,RowPointer,ue_OutsideCost,ue_TotalOutsideCost,ue_whse&clm=SP_MP123_CostProduction&clmparam=PLN, {{ json(outputs.calculate_dates.value).start_date }}, {{ json(outputs.calculate_dates.value).end_date }}, 1UN2CU3PL4RE5RO6CO7PA8PC1AC2AS3QC4PA9TP10H, , , , , DTL, BOTH,,
+
+          start_date: "{{ json(outputs.calculate_dates.value).start_date }}"
+          end_date: "{{ json(outputs.calculate_dates.value).end_date }}"
+          bq_destination_table: "{{ vars.dataset }}.cost_of_production_PLN_mp"
+          date_field: "month_year"
+          site: "{{ vars.site }}"
+          site_field: site
+          bq_schema_fields: |
+            {
+              'ue_LaborCost' : 'float',
+              'ue_MaterialCost' : 'float',
+              'ue_VovhdCost' : 'float',
+              'ue_FovhdCost' : 'float',
+              'ue_Qty' : 'float',
+              'ue_TotalCost' : 'float',
+              'ue_TotalLaborCost' : 'float',
+              'ue_TotalMaterialCost' : 'float',
+              'ue_TotalVovhdCost' : 'float',
+              'ue_TotalFovhdCost' : 'float',
+              'ue_TransDate' : 'date',
+              'ue_OutsideCost' : 'float',
+              'ue_TotalOutsideCost' : 'float'
+            }
+
+#-------------------------------------------------------------------------- VIEW Profitability --------------------------------------------------------------------------#
+  - id: ViewProfitability
+    type: io.kestra.plugin.core.flow.Subflow
+    flowId: generic_transform_dbt_build
+    namespace: dev
+
+    inputs: 
+      dbt_models: DataInfor.ProfitabilityUom_v
+      environment: prod

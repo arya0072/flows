@@ -1,0 +1,19 @@
+id: log_executions_clean_up
+namespace: dev
+description: |
+  This flow will remove all executions and logs older than 1 month.
+
+tasks:
+  - id: purge_executions
+    type: io.kestra.plugin.core.execution.PurgeExecutions
+    endDate: "{{ now() | dateAdd(-1, 'MONTHS') }}"
+    purgeLog: false
+
+  - id: purge_logs
+    type: io.kestra.plugin.core.log.PurgeLogs
+    endDate: "{{ now() | dateAdd(-1, 'MONTHS') }}"
+    
+triggers:
+  - id: weekly
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "@daily"

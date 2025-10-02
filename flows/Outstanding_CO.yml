@@ -1,0 +1,86 @@
+id: Outstanding_CO
+namespace: dev
+labels:
+  Type: Source
+  Source: INFOR
+
+triggers:
+  - id: daily_3am
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 3 * * *"
+
+variables:
+  dataset: mp_dbt
+
+tasks:
+
+  - id: run_el_outstanding_co
+    type: io.kestra.plugin.core.flow.Subflow
+    flowId: generic_extract_load_infor_replace
+    namespace: dev
+    
+    inputs:
+      api_path_and_query: https://csi10a.erpsl.se2.inforcloudsuite.com/IDORequestService/ido/load/ue_ID_MP49_OutStandingCO?properties=ue_AttributeValue,ue_bill_term,ue_CIDesc,ue_co_line,ue_co_num,ue_CoiDescription,ue_CoiOriPrice,ue_CoiQtyOpen,ue_CoiQtyOrdered,ue_CoiQtyShipped,ue_curr_code,ue_cust_item,ue_cust_num,ue_cust_po,ue_custname,ue_delterm,ue_disc,ue_due_date,ue_item,ue_ItemUM,ue_LineStatus,ue_order_date,ue_Overdue,ue_PriceAfterDisc,ue_ProductCode,ue_projected_date,ue_PromiseDate,ue_QtyOpenInPcs,ue_QtyOpenPerItemUM,ue_QtyOrderedInPcs,ue_QtyOrderedPerUM,ue_QtyShippedInPcs,ue_QtyShippedPerItemUM,ue_SFCCONesCode,ue_SFCCONesDesc,ue_TotalValueQtyOpen,ue_u_m,ue_ProdCodeDesc,ue_ShipDate,ue_SalesTeam, ue_QtyReadyToShip, ue_QtyReadyToShipInCoUM, ue_QtyReadyToShipInPcs, ue_QtyAfterPlanShipment, ue_QtyAfterPlanShipmentInCoUM, ue_QtyAfterPlanShipmentInPcs, ue_TotalValueQtyOpenAfterReadyToShip,ue_Uf_MP49_EORCustomTips,ue_Uf_MP49_EORCones,ue_Uf_MP49_EORPackaging,ue_Uf_MP49_EORStickerEtc,ue_Uf_MP49_EORPacking,ue_InitialReqDate,ue_ConfirmDate,ue_EffectiveDate,ue_Note,ue_RollingGroup&clm=SP_MP49_OutstandingCO&clmParam=,,,,,,,,,,
+
+      bq_destination_table: "{{ vars.dataset }}.outstanding_co"
+      bq_schema_fields: |
+        [
+          {"name": "ue_AttributeValue", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_bill_term", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_CIDesc", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_co_line", "type": "INTEGER", "mode": "NULLABLE"},
+          {"name": "ue_co_num", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_CoiDescription", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_CoiOriPrice", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "ue_CoiQtyOpen", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "ue_CoiQtyOrdered", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "ue_CoiQtyShipped", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "ue_curr_code", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_cust_item", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_cust_num", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_cust_po", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_custname", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_delterm", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_disc", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "ue_due_date", "type": "TIMESTAMP", "mode": "NULLABLE"},
+          {"name": "ue_item", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_ItemUM", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_LineStatus", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_order_date", "type": "TIMESTAMP", "mode": "NULLABLE"},
+          {"name": "ue_Overdue", "type": "INTEGER", "mode": "NULLABLE"},
+          {"name": "ue_PriceAfterDisc", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "ue_ProductCode", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_projected_date", "type": "TIMESTAMP", "mode": "NULLABLE"},
+          {"name": "ue_PromiseDate", "type": "TIMESTAMP", "mode": "NULLABLE"},
+          {"name": "ue_QtyOpenInPcs", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "ue_QtyOpenPerItemUM", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "ue_QtyOrderedInPcs", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "ue_QtyOrderedPerUM", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "ue_QtyShippedInPcs", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "ue_QtyShippedPerItemUM", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "ue_SFCCONesCode", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_SFCCONesDesc", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_TotalValueQtyOpen", "type": "FLOAT", "mode": "NULLABLE"},
+          {"name": "ue_u_m", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_ProdCodeDesc", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_ShipDate", "type": "TIMESTAMP", "mode": "NULLABLE"},
+          {"name": "ue_SalesTeam", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_QtyReadyToShip", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_QtyReadyToShipInCoUM", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_QtyReadyToShipInPcs", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_QtyAfterPlanShipment", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_QtyAfterPlanShipmentInCoUM", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_QtyAfterPlanShipmentInPcs", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_TotalValueQtyOpenAfterReadyToShip", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_Uf_MP49_EORCustomTips", "type": "TIMESTAMP", "mode": "NULLABLE"},
+          {"name": "ue_Uf_MP49_EORCones", "type": "TIMESTAMP", "mode": "NULLABLE"},
+          {"name": "ue_Uf_MP49_EORPackaging", "type": "TIMESTAMP", "mode": "NULLABLE"},
+          {"name": "ue_Uf_MP49_EORStickerEtc", "type": "TIMESTAMP", "mode": "NULLABLE"},
+          {"name": "ue_Uf_MP49_EORPacking", "type": "TIMESTAMP", "mode": "NULLABLE"},
+          {"name": "ue_InitialReqDate", "type": "TIMESTAMP", "mode": "NULLABLE"},
+          {"name": "ue_ConfirmDate", "type": "TIMESTAMP", "mode": "NULLABLE"},
+          {"name": "ue_EffectiveDate", "type": "TIMESTAMP", "mode": "NULLABLE"},
+          {"name": "ue_Note", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "ue_RollingGroup", "type": "STRING", "mode": "NULLABLE"},
+          {"name": "_ItemId", "type": "STRING", "mode": "NULLABLE"}
+        ]

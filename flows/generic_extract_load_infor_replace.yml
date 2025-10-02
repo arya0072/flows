@@ -1,0 +1,153 @@
+id: generic_extract_load_infor_replace
+namespace: dev
+
+inputs:
+  - id: api_path_and_query
+    type: STRING
+    description: "The full path and query string for the Infor API endpoint, with date placeholders."
+    required: true
+  - id: bq_destination_table
+    type: STRING
+    description: "The full BigQuery destination table name (e.g., my_dataset.my_table)."
+    required: true
+  - id: bq_schema_fields
+    type: STRING
+    description: "A JSON string mapping column names to their desired data types ('date', 'float', 'int')."
+    required: true
+  - id: warehouse
+    type: STRING
+    description: "A warehouse site (e.g gianyar, jembarana)"
+    required: false
+  
+tasks:
+  - id: extract_and_load
+    type: io.kestra.plugin.scripts.python.Script
+    beforeCommands:
+      - pip install pandas requests pandas-gbq google-cloud-bigquery pytz
+    inputFiles:
+      sa_key.json: "{{ kv('GCP_SERVICE_ACC_ETL') }}"
+    script: |
+      import pandas as pd
+      import pandas_gbq
+      import requests
+      import csv
+      import pytz
+      import json
+      from kestra import Kestra
+      from google.oauth2 import service_account
+
+      logger = Kestra.logger()
+      tags = {'source': "{{ inputs.bq_destination_table }}"}
+
+      def clean_and_convert_data(df, schema_list):
+        """Clean and convert DataFrame columns to match BigQuery schema."""
+        logger.info("--- Starting Data Cleaning and Conversion ---")
+        
+        # Create a mapping of field names to their BigQuery types
+        field_types = {field['name']: field['type'] for field in schema_list}
+        utc8 = pytz.timezone('Asia/Singapore')
+        
+        for col in df.columns:
+            if col in field_types:
+                bq_type = field_types[col]
+                
+                if bq_type == 'TIMESTAMP':
+                  # Handle timestamp columns
+                  df[col] = pd.to_datetime(df[col], errors='coerce', utc=True)
+                  df[col] = df[col].dt.tz_convert(utc8)
+                elif bq_type == 'DATE':
+                  # Handle date columns
+                  df[col] = pd.to_datetime(df[col], errors='coerce').dt.date
+                  df[col] = df[col].dt.tz_convert(utc8)
+                elif bq_type == 'INTEGER':
+                  # Handle integer columns
+                  df[col] = pd.to_numeric(df[col], errors='coerce').astype('Int64')
+                elif bq_type == 'FLOAT':
+                  # Handle float columns
+                  df[col] = pd.to_numeric(df[col], errors='coerce').astype('Float64')
+                elif bq_type == 'STRING':
+                  # Handle string columns
+                  df[col] = df[col].astype(str)
+                  df[col] = df[col].replace('nan', None)
+                  df[col] = df[col].replace('None', None)
+          
+        logger.info("Data cleaning and conversion completed.")
+        return df
+
+      def extract_and_transform(api_url, headers, partial_schema_json):
+        """Extracts data from the API and performs basic transformation."""
+
+        all_records = []
+        bookmark = ''
+
+        while True:
+          paginated_url = api_url
+          if bookmark:
+            paginated_url += f"&bookmark={bookmark}"
+
+          logger.info("--- Starting Extract & Transform Phase ---")
+          logger.info(f'Requesting URL: {api_url}')
+      
+          api_response = requests.get(paginated_url, headers=headers)
+          api_response.raise_for_status()
+
+          records = api_response.json()['Items']
+  
+          if records:
+            all_records.extend(records)
+            logger.info(f"Fetched {len(records)} records. Total so far: {len(all_records)}.")
+          
+          more_rows = api_response.json()['MoreRowsExist']
+
+          if more_rows:
+            bookmark = api_response.json()['Bookmark']
+            if not bookmark:
+              logger.warning("API indicates more rows but returned no bookmark. Stopping loop.")
+              break
+          else:
+            logger.info("No more rows indicated by API. Pagination complete.")
+            break
+
+        df = pd.json_normalize(all_records)
+        df = clean_and_convert_data(df, partial_schema_json)
+        logger.info(f'Successfully extracted and transformed {len(df)} records.')
+        return df
+
+      def load_to_bigquery(df, project_id, destination_table, credentials):
+        """Loads a pandas DataFrame to the specified BigQuery table."""
+        logger.info("--- Starting Load Phase ---")
+        
+        if df is None or df.empty:
+            logger.warning("DataFrame is empty. Nothing to load.")
+            return
+        
+        logger.info(f'Loading {len(df)} records to {destination_table}.')
+        pandas_gbq.to_gbq(
+            dataframe=df,
+            destination_table=destination_table,
+            project_id=project_id,
+            if_exists='replace',
+            credentials=credentials
+        )
+
+        Kestra.outputs({"total_data": len(df)})
+        Kestra.counter('total_data', len(df), tags)
+        logger.info('Successfully loaded data to BigQuery.')
+
+      if __name__ == '__main__':
+          # Read inputs from Kestra
+          api_url = """{{ inputs.api_path_and_query }}"""
+          headers = {"Authorization": "{{ kv('INFOR_API_TOKEN') }}", "X-Infor-MongooseConfig": '"MITRAPRODIN_PRD_MITRAPRO"'}
+          project_id = "{{ kv('GCP_PROJECT_ID') }}"
+          destination_table = "{{ inputs.bq_destination_table }}"
+          schema_json_string = json.loads("""{{ inputs.bq_schema_fields }}""")
+
+          with open('sa_key.json', 'r') as f:
+              sa_info = json.load(f)
+          
+          # Create the credentials object
+          credentials = service_account.Credentials.from_service_account_info(sa_info)
+          
+          # Run the two phases
+          extracted_df = extract_and_transform(api_url, headers, schema_json_string)
+          load_to_bigquery(extracted_df, project_id, destination_table, credentials)
