@@ -10,7 +10,7 @@ tasks:
     type: io.kestra.plugin.dbt.cli.DbtCLI
     namespaceFiles:
       enabled: true
-    containerImage: python:slim
+    containerImage: python:3.12-slim
     beforeCommands: 
       - pip install dbt-core dbt-bigquery
     projectDir: dbt

@@ -34,35 +34,41 @@ variables:
   dataset: mp_infor
 
 tasks:
+  - id: MovementValueParalel
+    type: io.kestra.plugin.core.flow.Parallel
+    tasks:
 
-  - id: run_el_saldo_awal_qty_mp_bq
+#-------------------------------------------------------------------------- saldo_awal_qty_mp_bq --------------------------------------------------------------------------#
+
+      - id: run_el_saldo_awal_qty_mp_bq
+        type: io.kestra.plugin.core.flow.Subflow
+        flowId: generic_extract_load_infor_append
+        namespace: dev
+        
+        inputs:
+          append_strategy: MONTHLY_SITE
+          api_path_and_query: https://csi10a.erpsl.se2.inforcloudsuite.com/IDORequestService/ido/load/ue_ID_MP45_InventoryMoveQty?properties=ue_Item,ue_ItemDesc,ue_ProdDesc,ue_ProductCode,ue_Customer,ue_CustName,ue_ConvFactor,ue_UM,ue_QtyBeginning,ue_QtyBeginning_Pcs&clm=SP_MP45_StockMoveQty&clmparam={{ inputs.start_date_manual }},{{ inputs.end_date_manual }},,,,,1
+          
+          start_date: "{{ inputs.start_date_manual }}"
+          end_date: "{{ inputs.end_date_manual }}"
+          bq_destination_table: "{{ vars.dataset }}.saldo_awal_qty_mp_bq"
+          date_field: "month_year"
+          site: "{{ inputs.site }}"
+          site_field: site
+          bq_schema_fields: |
+            {
+              'ue_ConvFactor' : 'float',
+              'ue_QtyBeginning' : 'float',
+              'ue_QtyBeginning_Pcs' : 'float'
+            }
+
+#-------------------------------------------------------------------------- Movement_qty_mp_v --------------------------------------------------------------------------#
+
+  - id: ViewMovement_qty_mp_v
     type: io.kestra.plugin.core.flow.Subflow
-    flowId: generic_extract_load_infor_append
+    flowId: generic_transform_dbt_build
     namespace: dev
-    
-    inputs:
-      append_strategy: MONTHLY_SITE
-      api_path_and_query: https://csi10a.erpsl.se2.inforcloudsuite.com/IDORequestService/ido/load/ue_ID_MP45_InventoryMoveQty?properties=ue_Item,ue_ItemDesc,ue_ProdDesc,ue_ProductCode,ue_Customer,ue_CustName,ue_ConvFactor,ue_UM,ue_QtyBeginning,ue_QtyBeginning_Pcs&clm=SP_MP45_StockMoveQty&clmparam={{ inputs.start_date_manual }},{{ inputs.end_date_manual }},,,,,1
-      
-      start_date: "{{ inputs.start_date_manual }}"
-      end_date: "{{ inputs.end_date_manual }}"
-      bq_destination_table: "{{ vars.dataset }}.saldo_awal_qty_mp_bq"
-      date_field: "month_year"
-      site: "{{ inputs.site }}"
-      site_field: site
-      bq_schema_fields: |
-        {
-          'ue_ConvFactor' : 'float',
-          'ue_QtyBeginning' : 'float',
-          'ue_QtyBeginning_Pcs' : 'float'
-        }
 
-  - id: result_logs
-    type: io.kestra.plugin.core.debug.Return
-    format: |
-      Total rows: {{ outputs.run_el_saldo_awal_qty_mp_bq.outputs.total_rows }}
-      Start Date: {{ outputs.run_el_saldo_awal_qty_mp_bq.outputs.start_date }}
-      End Date: {{ outputs.run_el_saldo_awal_qty_mp_bq.outputs.end_date }}
-      Year: {{ outputs.run_el_saldo_awal_qty_mp_bq.outputs.year }}
-      Month: {{ outputs.run_el_saldo_awal_qty_mp_bq.outputs.month }}
-
+    inputs: 
+      dbt_models: DataInfor.movement_qty_mp_v
+      environment: prod

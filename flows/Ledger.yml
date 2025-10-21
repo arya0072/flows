@@ -36,6 +36,7 @@ tasks:
   - id: ledger_parallel
     type: io.kestra.plugin.core.flow.Parallel
     tasks:
+#-------------------------------------------------------------------------- ledger_notes --------------------------------------------------------------------------#
       - id: run_el_ledger_notes
         type: io.kestra.plugin.core.flow.Subflow
         flowId: generic_extract_load_infor_append
@@ -54,7 +55,7 @@ tasks:
               'RecordDate' : 'date',
               'ue_SpcnRecordDate' : 'date'
             }
-            
+#-------------------------------------------------------------------------- ledger --------------------------------------------------------------------------#            
       - id: run_el_ledger
         type: io.kestra.plugin.core.flow.Subflow
         flowId: generic_extract_load_infor_append
@@ -62,7 +63,7 @@ tasks:
         
         inputs:
           append_strategy: DAILY
-          api_path_and_query: https://csi10a.erpsl.se2.inforcloudsuite.com/IDORequestService/ido/load/SLLedgers?properties=Acct,AcctUnit1,AcctUnit2,AcctUnit3,AcctUnit4,BankCode,ChaDescription,CheckDate,CheckNum,Consolidated,ControlNumber,ControlPeriod,ControlPrefix,ControlSite,ControlYear,CurrAmtFormat,CurrCode,CurrCstPrcFormat,DerApproveDate,DerApprover,DerCustVendName,DerDomAmountCredit,DerDomAmountDebit,DerForAmountCredit,DerForAmountDebit,DerSumDomAmount,DerVoucher,DerVoucher1,DocumentNum,DomAmount,DTransNum,ExchRate,ForAmount,FRDerDate,FRDerDescription,FRDerInvDate,FRDerSign,FromId,FromSite,Hierarchy,JournalBatchId,MatlTransNum,Processed,Ref,RefControlNumber,RefControlPeriod,RefControlPrefix,RefControlSite,RefControlYear,RefType,Site,THPaymentNumber,TransDate,TransNum,UbCHGLVouNum,UbCHLineNum,UbCHRubric,VendNum,VendNumSource,Voucher,VouchSeq,JhType,Type,ProjTransNum,Cancellation,GLVoucher,FRLetter,FRLetteringDate,EnableCancellationPosting,RecordDate,RowPointer&filter=TransDate >= '{{ json(outputs.calculate_dates.value).start_date }}' AND TransDate <= '{{ json(outputs.calculate_dates.value).end_date }}'&recordCap={{ vars.n }}&loadType=NEXT
+          api_path_and_query: https://csi10a.erpsl.se2.inforcloudsuite.com/IDORequestService/ido/load/SLLedgers?properties=Acct,AcctUnit1,AcctUnit2,AcctUnit3,AcctUnit4,BankCode,ChaDescription,CheckDate,CheckNum,Consolidated,ControlNumber,ControlPeriod,ControlPrefix,ControlSite,ControlYear,CurrAmtFormat,CurrCode,CurrCstPrcFormat,DerApproveDate,DerApprover,DerCustVendName,DerDomAmountCredit,DerDomAmountDebit,DerForAmountCredit,DerForAmountDebit,DerSumDomAmount,DerVoucher,DerVoucher1,DocumentNum,DomAmount,DTransNum,ExchRate,ForAmount,FRDerDate,FRDerDescription,FRDerInvDate,FRDerSign,FromId,FromSite,Hierarchy,JournalBatchId,MatlTransNum,Processed,Ref,RefControlNumber,RefControlPeriod,RefControlPrefix,RefControlSite,RefControlYear,RefType,Site,THPaymentNumber,TransDate,TransNum,UbCHGLVouNum,UbCHLineNum,UbCHRubric,VendNum,VendNumSource,Voucher,VouchSeq,JhType,Type,ProjTransNum,Cancellation,GLVoucher,FRLetter,FRLetteringDate,EnableCancellationPosting,RecordDate,RowPointer&filter=TransDate >= '{{ json(outputs.calculate_dates.value).start_date }} 00:00:00' AND TransDate <= '{{ json(outputs.calculate_dates.value).end_date }} 23:59:59'&recordCap={{ vars.n }}&loadType=NEXT
           start_date: "{{ json(outputs.calculate_dates.value).start_date }}"
           end_date: "{{ json(outputs.calculate_dates.value).end_date }}"
           bq_destination_table: "{{ vars.dataset }}.ledger"
@@ -97,3 +98,13 @@ tasks:
               'ProjTransNum' : 'int',
               'FRLetteringDate' : 'date'
             }
+
+#-------------------------------------------------------------------------- ViewLedger --------------------------------------------------------------------------#
+  # - id: ViewLedger
+  #   type: io.kestra.plugin.core.flow.Subflow
+  #   flowId: generic_transform_dbt_build
+  #   namespace: dev
+
+  #   inputs: 
+  #     dbt_models: DataInfor.DetailExpenses_v
+  #     environment: prod

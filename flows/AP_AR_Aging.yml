@@ -1,0 +1,95 @@
+id: AP_AR_Aging
+namespace: dev
+labels:
+  Type: Source
+  Group: Movement
+
+triggers:
+  - id: monthly
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "@monthly"
+
+inputs:
+  - id: start_date_manual
+    type: DATE
+    required: true
+    displayName: Start Date
+  - id: end_date_manual
+    type: DATE
+    required: true
+    displayName: End Date
+
+variables:
+  n: 20000
+  dataset: mp_infor
+
+tasks:
+  - id: calculate_dates
+    type: io.kestra.plugin.core.debug.Return
+    format: |
+      {
+        "start_date": "{% if inputs.start_date_manual is defined and inputs.start_date_manual is not null %}{{ inputs.start_date_manual | date('yyyy-MM-dd') }}{% else %}{{ trigger.date | dateAdd(-1, 'MONTHS') | date('yyyy-MM-01') }}{% endif %}",
+        "end_date": "{% if inputs.end_date_manual is defined and inputs.end_date_manual is not null %}{{ inputs.end_date_manual | date('yyyy-MM-dd') }}{% else %}{{ trigger.date | dateAdd(-1, 'DAYS') | date('yyyy-MM-dd') }}{% endif %}"
+      }
+
+  - id: AP_AR_AgingParalel
+    type: io.kestra.plugin.core.flow.Parallel
+    tasks:
+#-------------------------------------------------------------------------- AP Aging --------------------------------------------------------------------------#
+      - id: APAging
+        type: io.kestra.plugin.core.flow.Subflow
+        flowId: generic_extract_load_infor_append
+        namespace: dev
+        
+        inputs:
+          append_strategy: MONTHLY
+          api_path_and_query: https://csi10a.erpsl.se2.inforcloudsuite.com/IDORequestService/ido/load/SL_MP_AccountPayableAgingSumByVoucher?properties=VendNum,VendName,Voucher,DistDate,InvDate,DueDate,CurrCode,exch_rate,AgingBucket1,AgingBucket2,AgingBucket3,AgingBucket4,AgingBucket5,AgingBucket6,AgingBucket7,Total&clm=MP_AccountPayableAging_SumByVoucherSp&clmparam=DD,{{ json(outputs.calculate_dates.value).start_date }},{{ json(outputs.calculate_dates.value).end_date }},1,,,,,,,
+
+          start_date: "{{ json(outputs.calculate_dates.value).start_date }}"
+          end_date: "{{ json(outputs.calculate_dates.value).end_date }}"
+          bq_destination_table: "{{ vars.dataset }}.AP_Aging"
+          date_field: "month_year"
+          bq_schema_fields: |
+            {
+              'DistDate': 'date',
+              'InvDate': 'date',
+              'DueDate': 'date',
+              'exch_rate': 'float',
+              'AgingBucket1': 'float',
+              'AgingBucket2': 'float',
+              'AgingBucket3': 'float',
+              'AgingBucket4': 'float',
+              'AgingBucket5': 'float',
+              'AgingBucket6': 'float',
+              'AgingBucket7': 'float',
+              'Total': 'float'
+            }
+
+#-------------------------------------------------------------------------- AR Aging --------------------------------------------------------------------------#
+      - id: ARAging
+        type: io.kestra.plugin.core.flow.Subflow
+        flowId: generic_extract_load_infor_append
+        namespace: dev
+        
+        inputs:
+          append_strategy: MONTHLY
+          api_path_and_query: https://csi10a.erpsl.se2.inforcloudsuite.com/IDORequestService/ido/load/SL_MP_AccountReceivableAgingSumByInvoice?properties=CustNum,CustName,InvNum,InvDate,DueDate,CurrCode,exch_rate,AgingBucket1,AgingBucket2,AgingBucket3,AgingBucket4,AgingBucket5,AgingBucket6,AgingBucket7,Total&clm=MP_AccountReceivableAging_SumByInvoiceSp&clmparam=DD,{{ json(outputs.calculate_dates.value).start_date }},{{ json(outputs.calculate_dates.value).end_date }},1,,,,,0
+
+          start_date: "{{ json(outputs.calculate_dates.value).start_date }}"
+          end_date: "{{ json(outputs.calculate_dates.value).end_date }}"
+          bq_destination_table: "{{ vars.dataset }}.AR_Aging"
+          date_field: "month_year"
+          bq_schema_fields: |
+            {
+              'InvDate': 'date',
+              'DueDate': 'date',
+              'exch_rate': 'float',
+              'AgingBucket1': 'float',
+              'AgingBucket2': 'float',
+              'AgingBucket3': 'float',
+              'AgingBucket4': 'float',
+              'AgingBucket5': 'float',
+              'AgingBucket6': 'float',
+              'AgingBucket7': 'float',
+              'Total': 'float'
+            }

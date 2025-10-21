@@ -5,9 +5,9 @@ labels:
   Group: MP81
 
 triggers:
-  - id: daily
+  - id: monthly
     type: io.kestra.plugin.core.trigger.Schedule
-    cron: "@daily"
+    cron: "@monthly"
 
 inputs:
   - id: date
@@ -26,8 +26,8 @@ tasks:
     format: |
       {
         "year": "{% if inputs.date is defined and inputs.date is not null %}{{ inputs.date | date('yyyy') }}{% else %}{{ trigger.date ?? execution.startDate | date('yyyy') }}{% endif %}",
-        "month": "{% if inputs.date is defined and inputs.date is not null %}{{ inputs.date | date('MM') }}{% else %}{{ trigger.date ?? execution.startDate | date('MM') }}{% endif %}",
-        "date": "{% if inputs.date is defined and inputs.date is not null %}{{ inputs.date | date('yyyy-MM-dd') }}{% else %}{{ trigger.date ?? execution.startDate | date('yyyy-MM-dd') }}{% endif %}"
+        "month": "{% if inputs.date is defined and inputs.date is not null %}{{ inputs.date | date('MM') }}{% else %}{{ trigger.date ?? execution.startDate | dateAdd(-1, 'MONTHS') | date('MM') }}{% endif %}",
+        "date": "{% if inputs.date is defined and inputs.date is not null %}{{ inputs.date | date('yyyy-MM-dd') }}{% else %}{{ trigger.date ?? execution.startDate | dateAdd(-1, 'MONTHS') | date('yyyy-MM-dd') }}{% endif %}"
       }
 
   - id: MP81_BalanceSheetType_Paralel
